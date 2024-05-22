@@ -5,6 +5,7 @@ A series of web scraping projects in Python to practice finding, pulling, and us
 - cd into folder
 - run `python main.py`
 - go to browser and search `http://localhost:8084/`
+- **current issue with the OpenSky API on their side
 
 #### Project 2:
 - 
