@@ -1,38 +1,63 @@
-# import libraries
 import requests
-import json
-from bs4 import BeautifulSoup
 import pandas as pd
-
-# Area extent of the search
-lon_min,lat_min=-125.974,30.038
-lon_max,lat_max=-68.748,52.214
-
-# Rest API Query
-url = f'https://opensky-network.org/api/states/all?lamin={lat_min}&lomin={lon_min}&lamax={lat_max}&lomax={lon_max}'
-response1 = requests.get(url)
-response2 = requests.get(url).json()
-if (response1.status_code == 200):
-    html_content = response1.text
-    print('Successful')
-else:
-    print(f"Failed to retrieve the web page. Status code: {response1.status_code}")
-
-# Parse HTML using beautiful soup
-soup = BeautifulSoup(html_content, 'html.parser')
+import time
 
 
-# Load to a Pandas dataframe
-col_name = ['icao24', 'callsign', 'origin_country', 'time_position', 'last_contact', 'baro_altitude', 'on_ground', 'velocity',
-            'true_track', 'vertical_rate', 'sensors', 'geo_altitude', 'squawk', 'spi', 'position_source']
-flight_df = pd.DataFrame(response2['states'])
-print('test1')
-print(response2)
-print('test2')
-print(response2['states'])
-print(flight_df.shape)
-print(flight_df.head())
-# flight_df = flight_df.loc[ : , 0:16]
-# flight_df.columns = col_name
-# flight_df = flight_df.fillna('No Data')
-# flight_df.head()
+# This functions sends GET request to the OpenSky API to fetch the current states of all aircraft (as noted by 'all' in url). 
+# Checks if there is an error in fetching data or if the data is empty
+def fetch_opensky_data():
+    url = "https://opensky-network.org/api/states/all"
+    
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+    except requests.RequestException as e:
+        print(f"Error fetching data from OpenSky API: {e}")
+        return None
+
+    data = response.json()
+
+    if data['states'] is None:
+        print("No aircraft data available at this time.")
+        return None
+    
+    return data
+
+
+# takes raw data from the fetch and puts it in a Pandas dataframe (and adds a timestamp)
+def process_data(data):
+    columns = [
+        "icao24", "callsign", "origin_country", "time_position", "last_contact",
+        "longitude", "latitude", "baro_altitude", "on_ground", "velocity",
+        "true_track", "vertical_rate", "sensors", "geo_altitude", "squawk",
+        "spi", "position_source"
+    ]
+
+    df = pd.DataFrame(data['states'], columns=columns)
+    df['timestamp'] = data['time']
+    return df
+
+
+# Pretty self explanatory -- saves the dataframe to a CSV file
+def save_to_csv(df, filename):
+    df.to_csv(filename, index=False)
+    print(f"Data saved to {filename}")
+
+
+# organizing fetching, cleaning, and exporting of data
+def main():
+    print("Fetching data from OpenSky Network API...")
+    #fetch data
+    data = fetch_opensky_data()
+    
+    if data:
+        # if data exists, processes the data
+        df = process_data(data)
+        # generate a timestamp to create a unique filename
+        timestamp = time.strftime('%Y%m%d_%H%M%S', time.gmtime(data['time']))
+        filename = f"opensky_data_{timestamp}.csv"
+        # save to csv using the above created file name
+        save_to_csv(df, filename)
+
+if __name__ == "__main__":
+    main()
